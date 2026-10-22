@@ -119,6 +119,41 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &23002835
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 23002836}
+  m_Layer: 0
+  m_Name: BagSlotsEmptyGameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &23002836
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 23002835}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 128700164}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 800, y: 600}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &128700163
 GameObject:
   m_ObjectHideFlags: 0
@@ -150,12 +185,13 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1121250356}
+  - {fileID: 23002836}
   m_Father: {fileID: 916697492}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -500, y: 350}
-  m_SizeDelta: {x: -1000, y: -700}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 800, y: 800}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &128700165
 MonoBehaviour:
@@ -512,6 +548,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 219193673}
+  - component: {fileID: 219193674}
   m_Layer: 0
   m_Name: HotBar
   m_TagString: Untagged
@@ -539,6 +576,22 @@ RectTransform:
   m_AnchoredPosition: {x: -50, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &219193674
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 219193672}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fbb3940c14433eb4784a335b70e41c80, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InventoryHotbarLink
+  inventory: {fileID: 510362191}
+  hotbar: {fileID: 1791817638}
+  readSlotInputs: 1
+  gamepadBumperCycle: 1
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -856,7 +909,6 @@ GameObject:
   - component: {fileID: 510362188}
   - component: {fileID: 510362189}
   - component: {fileID: 510362191}
-  - component: {fileID: 510362190}
   - component: {fileID: 510362192}
   - component: {fileID: 510362193}
   m_Layer: 0
@@ -1116,22 +1168,6 @@ MonoBehaviour:
   maxStandaloneItems: 8
   equipMount: {fileID: 204533574}
   dropDistance: 1.25
---- !u!114 &510362190
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 510362180}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fbb3940c14433eb4784a335b70e41c80, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::InventoryHotbarLink
-  inventory: {fileID: 510362191}
-  hotbar: {fileID: 1791817638}
-  readSlotInputs: 1
-  gamepadBumperCycle: 1
 --- !u!114 &510362191
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1634,10 +1670,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 916697492}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 1000, y: 1000}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &858864518
 MonoBehaviour:
@@ -1850,7 +1886,7 @@ RectTransform:
   m_Children:
   - {fileID: 858864517}
   - {fileID: 128700164}
-  m_Father: {fileID: 1400071681}
+  m_Father: {fileID: 1171208207}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -1906,10 +1942,10 @@ Canvas:
   m_GameObject: {fileID: 916697491}
   m_Enabled: 1
   serializedVersion: 3
-  m_RenderMode: 0
-  m_Camera: {fileID: 0}
-  m_PlaneDistance: 100
-  m_PixelPerfect: 0
+  m_RenderMode: 1
+  m_Camera: {fileID: 416360298}
+  m_PlaneDistance: 1
+  m_PixelPerfect: 1
   m_ReceivesEvents: 1
   m_OverrideSorting: 0
   m_OverridePixelPerfect: 0
@@ -2005,8 +2041,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1121250356}
+  - component: {fileID: 1121250357}
   m_Layer: 0
-  m_Name: HotBar
+  m_Name: HotBarEmptyGameObject
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2029,9 +2066,25 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: -0.000030517578, y: 0}
+  m_AnchoredPosition: {x: 0, y: 50}
   m_SizeDelta: {x: 0, y: 100}
-  m_Pivot: {x: 0.5, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1121250357
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1121250355}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fbb3940c14433eb4784a335b70e41c80, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InventoryHotbarLink
+  inventory: {fileID: 510362191}
+  hotbar: {fileID: 1665981308}
+  readSlotInputs: 1
+  gamepadBumperCycle: 1
 --- !u!1 &1171208206
 GameObject:
   m_ObjectHideFlags: 0
@@ -2042,7 +2095,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1171208207}
   m_Layer: 0
-  m_Name: PlayerHud
+  m_Name: PlayerHudEmptyGameObject
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2062,7 +2115,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1542261167}
-  - {fileID: 1400071681}
+  - {fileID: 916697492}
   m_Father: {fileID: 510362183}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1398905475
@@ -2075,7 +2128,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1398905476}
   m_Layer: 0
-  m_Name: CameraPosititon
+  m_Name: CameraPosititonEmptyGameObject
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2108,13 +2161,15 @@ GameObject:
   - component: {fileID: 1400071681}
   - component: {fileID: 1400071683}
   - component: {fileID: 1400071682}
+  - component: {fileID: 1400071684}
+  - component: {fileID: 1400071685}
   m_Layer: 0
-  m_Name: Bag
+  m_Name: InventoryUIManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1400071681
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2126,13 +2181,12 @@ RectTransform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 916697492}
-  m_Father: {fileID: 1171208207}
+  m_Children: []
+  m_Father: {fileID: 1542261167}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 1, y: 0}
+  m_AnchorMax: {x: 1, y: 0}
+  m_AnchoredPosition: {x: -50, y: 50}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1400071682
@@ -2155,7 +2209,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Texture: {fileID: 0}
+  m_Texture: {fileID: 10904, guid: 0000000000000000f000000000000000, type: 0}
   m_UVRect:
     serializedVersion: 2
     x: 0
@@ -2170,6 +2224,36 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1400071680}
   m_CullTransparentMesh: 1
+--- !u!114 &1400071684
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1400071680}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7f24b7c879e924c4cb4cac680515fb5c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BagUIToggle
+  bagRoot: {fileID: 916697491}
+  startOpen: 0
+--- !u!114 &1400071685
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1400071680}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fbb3940c14433eb4784a335b70e41c80, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InventoryHotbarLink
+  inventory: {fileID: 510362191}
+  hotbar: {fileID: 1665981308}
+  readSlotInputs: 1
+  gamepadBumperCycle: 1
 --- !u!4 &1527146044 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -229113793236118474, guid: 2faa610713d3b3c439473daa55e8c60a, type: 3}
@@ -2209,6 +2293,7 @@ RectTransform:
   - {fileID: 588611893}
   - {fileID: 1918312752}
   - {fileID: 219193673}
+  - {fileID: 1400071681}
   m_Father: {fileID: 1171208207}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -2530,6 +2615,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1665981307}
+  - component: {fileID: 1665981308}
   m_Layer: 0
   m_Name: EquipMentHotBarBagSlot
   m_TagString: Untagged
@@ -2556,6 +2642,33 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1665981308
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1665981306}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f58cf7d16f21a124aa4fa19ae7c1b7ba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ItemHotbar
+  direction: 0
+  minimumVisibleSlots: 5
+  slotWidth: 90
+  slotHeight: 90
+  spacing: 8
+  padding: {x: 6, y: 6}
+  slotAlignment: 4
+  normalColor: {r: 0.09, g: 0.11, b: 0.17, a: 0.85}
+  selectedColor: {r: 0.95, g: 0.7, b: 0.1, a: 0.94}
+  emptyColor: {r: 0.08, g: 0.08, b: 0.08, a: 0.55}
+  textColor: {r: 1, g: 1, b: 1, a: 1}
+  showItemNames: 1
+  showSlotNumbers: 1
+  labelFontSize: 15
+  spriteSizeFraction: 0.65
 --- !u!1 &1708037194
 GameObject:
   m_ObjectHideFlags: 0
