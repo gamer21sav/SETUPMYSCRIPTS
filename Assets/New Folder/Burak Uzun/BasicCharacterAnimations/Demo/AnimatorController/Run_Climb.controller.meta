@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 63ea76706ab393b42a7c0ca1f90ccb89
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 9100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 409552
+  packageName: Basic Character Animations FREE
+  packageVersion: 1.0
+  assetPath: Assets/Burak Uzun/BasicCharacterAnimations/Demo/AnimatorController/Run_Climb.controller
+  uploadId: 1016880

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 /// <summary>
@@ -9,6 +10,8 @@ using UnityEngine;
 ///
 /// Parameters are optional: only Animator parameters of the correct type are updated.
 /// Jumping and Falling are BOOLS, Landing is a TRIGGER, DodgeX / DodgeY are FLOATS.
+/// Optional generic enum-State observation reads exact crouch/slide state when available,
+/// otherwise capsule height + speed are used. No custom script is required.
 /// Optional APIs let any future motor/AI/network script feed exact action information.
 /// </summary>
 [DisallowMultipleComponent]
@@ -48,6 +51,20 @@ public sealed class AnimationHandler : MonoBehaviour
     [SerializeField] private bool detectDodgeFromSpeed = true;
     [Tooltip("Set above sprint speed and below dash speed (SimpleMove defaults: 9.5 and 17).")]
     [SerializeField, Min(0f)] private float dodgeDetectionSpeed = 12.5f;
+
+    [Header("Automatic crouch / slide animation (no custom-script dependency)")]
+    [Tooltip("Optionally observe ANY co-located component exposing a public enum property named State with Crouching and Sliding members. No custom class is referenced or required; falls back to the capsule if absent.")]
+    [SerializeField] private bool useOptionalEnumState = true;
+    [Tooltip("When no compatible public State property is available, infer crouch/slide from CharacterController capsule height and movement speed.")]
+    [SerializeField] private bool useCapsuleStanceFallback = true;
+    [Tooltip("How much shorter the CharacterController must become before it counts as a crouch. World-unscaled capsule height units.")]
+    [SerializeField, Min(0.01f)] private float stanceHeightTolerance = 0.055f;
+    [Tooltip("Fallback only: speed when capsule first shortens that suggests a slide (approximate; exact optional state observation is preferred).")]
+    [SerializeField, Min(0f)] private float inferredSlideStartSpeed = 6f;
+    [Tooltip("Fallback only: below this speed, the inferred slide ends.")]
+    [SerializeField, Min(0f)] private float inferredSlideEndSpeed = 3.2f;
+    [Tooltip("Fallback only: maximum time the inferred slide stays active.")]
+    [SerializeField, Min(0.05f)] private float inferredSlideMaxTime = 0.9f;
 
     [Header("Animation safety")]
     [Tooltip("CharacterController-driven characters should not be moved by animation root motion.")]
@@ -105,6 +122,15 @@ public sealed class AnimationHandler : MonoBehaviour
     private bool wallRunning;
     private bool climbing;
     private bool vaulting;
+    private bool manualStanceOverride;
+    private MonoBehaviour optionalStateSource;
+    private PropertyInfo optionalStateProperty;
+    private float standingCapsuleHeight;
+    private bool previousCapsuleShortened;
+    private bool inferredSliding;
+    private float inferredSlideTimer;
+    private bool lastLoggedCrouching;
+    private bool lastLoggedSliding;
     private readonly RaycastHit[] groundProbeHits = new RaycastHit[16];
 
     public float ObservedSpeed => horizontalSpeed;
@@ -135,6 +161,9 @@ public sealed class AnimationHandler : MonoBehaviour
             return;
         }
         CacheAnimatorParameters();
+        // The standing reference comes from the Unity component itself, not the motor.
+        standingCapsuleHeight = characterController != null ? characterController.height : 0f;
+        FindOptionalStateSource();
         // A CharacterController-driven motor owns root position; animation must not.
         if (disableAnimatorRootMotion) animator.applyRootMotion = false;
     }
@@ -150,6 +179,11 @@ public sealed class AnimationHandler : MonoBehaviour
         lastLoggedGrounded = false;
         lastLoggedDashing = false;
         lastLoggedFalling = false;
+        lastLoggedCrouching = false;
+        lastLoggedSliding = false;
+        previousCapsuleShortened = false;
+        inferredSliding = false;
+        inferredSlideTimer = 0f;
     }
 
     private void Update()
@@ -177,6 +211,10 @@ public sealed class AnimationHandler : MonoBehaviour
         Vector3 horizontalDelta = Vector3.ProjectOnPlane(displacement, Vector3.up);
         horizontalSpeed = horizontalDelta.magnitude / dt;
         verticalSpeed = displacement.y / dt;
+
+        bool stanceCrouching;
+        bool stanceSliding;
+        ResolveStance(grounded, dt, out stanceCrouching, out stanceSliding);
 
         bool dashing = dashOverrideEnabled
             ? dashOverrideActive
@@ -260,8 +298,12 @@ public sealed class AnimationHandler : MonoBehaviour
         SetBool(JumpID, jumping);
         SetBool(FallID, falling);
         SetBool(DashID, dashing);
-        SetBool(CrouchID, crouching);
-        SetBool(SlideID, sliding);
+        // Slide has visual priority over crouch: never send two competing
+        // stance bools at once. Jump and dash also take priority.
+        bool showSliding = grounded && !special && stanceSliding;
+        bool showCrouching = grounded && !special && stanceCrouching && !showSliding;
+        SetBool(CrouchID, showCrouching);
+        SetBool(SlideID, showSliding);
         SetBool(WallRunID, wallRunning);
         SetBool(ClimbID, climbing);
         SetBool(VaultID, vaulting);
@@ -272,18 +314,108 @@ public sealed class AnimationHandler : MonoBehaviour
         }
 
         if (debugStateChanges &&
-            (grounded != lastLoggedGrounded || dashing != lastLoggedDashing || falling != lastLoggedFalling))
+            (grounded != lastLoggedGrounded || dashing != lastLoggedDashing || falling != lastLoggedFalling ||
+             showCrouching != lastLoggedCrouching || showSliding != lastLoggedSliding))
         {
             Debug.Log($"AnimationHandler: grounded={grounded}, falling={falling}, dash={dashing}, " +
-                $"dy={verticalSpeed:F2}, speed={horizontalSpeed:F2}, controllerGrounded=" +
+                $"crouch={showCrouching}, slide={showSliding}, dy={verticalSpeed:F2}, speed={horizontalSpeed:F2}, controllerGrounded=" +
                 (characterController != null ? characterController.isGrounded.ToString() : "none"), this);
         }
         lastLoggedGrounded = grounded;
         lastLoggedDashing = dashing;
         lastLoggedFalling = falling;
+        lastLoggedCrouching = showCrouching;
+        lastLoggedSliding = showSliding;
         previousGrounded = grounded;
         wasDashing = dashing;
         wasJumping = jumping;
+    }
+
+    // Optional generic state observation: no reference to SimpleMove or any
+    // custom game type. A component with any matching enum State can provide
+    // exact crouch/slide flags. Without one, detection uses only Unity APIs.
+    private void FindOptionalStateSource()
+    {
+        optionalStateSource = null;
+        optionalStateProperty = null;
+        if (!useOptionalEnumState || motionRoot == null) return;
+
+        MonoBehaviour[] components = motionRoot.GetComponents<MonoBehaviour>();
+        foreach (MonoBehaviour component in components)
+        {
+            if (component == null || component == this) continue;
+            PropertyInfo property = component.GetType().GetProperty("State", BindingFlags.Public | BindingFlags.Instance);
+            if (property == null || !property.CanRead || property.GetIndexParameters().Length != 0 ||
+                !property.PropertyType.IsEnum) continue;
+            string[] names = System.Enum.GetNames(property.PropertyType);
+            bool hasCrouching = false;
+            bool hasSliding = false;
+            foreach (string name in names)
+            {
+                if (name == "Crouching") hasCrouching = true;
+                if (name == "Sliding") hasSliding = true;
+            }
+            if (!hasCrouching || !hasSliding) continue;
+            optionalStateSource = component;
+            optionalStateProperty = property;
+            break;
+        }
+    }
+
+    private void ResolveStance(bool grounded, float dt, out bool isCrouching, out bool isSliding)
+    {
+        isCrouching = false;
+        isSliding = false;
+
+        // Existing, backwards-compatible method has precedence when used.
+        if (manualStanceOverride)
+        {
+            isSliding = sliding;
+            isCrouching = crouching && !sliding;
+            return;
+        }
+
+        // Uses only a generic public property, not a compiled dependency.
+        if (useOptionalEnumState && optionalStateSource != null &&
+            optionalStateSource.isActiveAndEnabled && optionalStateProperty != null)
+        {
+            object state = optionalStateProperty.GetValue(optionalStateSource, null);
+            string name = state != null ? state.ToString() : string.Empty;
+            isSliding = name == "Sliding";
+            isCrouching = name == "Crouching";
+            return;
+        }
+
+        if (!useCapsuleStanceFallback || characterController == null ||
+            !characterController.enabled || standingCapsuleHeight <= 0f) return;
+
+        // Approximation for fully standalone use with any motor that changes
+        // CharacterController.height to crouch. Fast crouch on first entry is
+        // interpreted as slide; later high crouch speed does not re-trigger it.
+        bool shortened = characterController.height < standingCapsuleHeight - stanceHeightTolerance;
+        if (!shortened || !grounded)
+        {
+            inferredSliding = false;
+            inferredSlideTimer = 0f;
+        }
+        else
+        {
+            if (!previousCapsuleShortened && horizontalSpeed >= inferredSlideStartSpeed)
+            {
+                inferredSliding = true;
+                inferredSlideTimer = 0f;
+            }
+            if (inferredSliding)
+            {
+                inferredSlideTimer += dt;
+                if (horizontalSpeed <= inferredSlideEndSpeed ||
+                    inferredSlideTimer >= inferredSlideMaxTime)
+                    inferredSliding = false;
+            }
+        }
+        previousCapsuleShortened = shortened;
+        isSliding = grounded && shortened && inferredSliding;
+        isCrouching = grounded && shortened && !isSliding;
     }
 
     private bool ReadGrounded(Vector3 rootPosition)
@@ -374,10 +506,18 @@ public sealed class AnimationHandler : MonoBehaviour
     public void SetTraversalFlags(bool isCrouching, bool isSliding,
                                   bool isWallRunning, bool isClimbing, bool isVaulting)
     {
+        // Caller-supplied stance values take precedence until cleared.
+        manualStanceOverride = true;
         crouching = isCrouching;
         sliding = isSliding;
         wallRunning = isWallRunning;
         climbing = isClimbing;
         vaulting = isVaulting;
+    }
+
+    /// <summary>Resume automatic crouch/slide detection after SetTraversalFlags.</summary>
+    public void ClearTraversalStanceOverride()
+    {
+        manualStanceOverride = false;
     }
 }
