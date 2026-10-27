@@ -1,36 +1,34 @@
-#if ENABLE_INPUT_SYSTEM
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
+#endif
 
-/// <summary>Optional Input System keyboard+mouse source. Add to the SAME object as SimpleMove.
-/// Works with Active Input Handling = Input System Package or Both.</summary>
+/// Replace the existing PortableNewInputSource. Attach to Player alongside SimpleMove.
+/// Keyboard/mouse commands use saved bindings under either Unity input backend.
 [DisallowMultipleComponent]
 public sealed class PortableNewInputSource : MonoBehaviour, IMoveCommandSource, IMoveInputGate
 {
-    [Tooltip("Mouse delta pixels-to-look scaling; camera rig handles sensitivity separately.")]
-    [SerializeField, Min(0f)] private float mouseDeltaScale = 0.025f;
+    [SerializeField, Min(0f)] private float mouseDeltaScale = .025f;
     public bool InputAllowed { get; set; } = true;
-
     public MoveCommand SampleCommand()
     {
-        MoveCommand cmd = MoveCommand.Empty;
-        Keyboard kb = Keyboard.current;
-        if (!InputAllowed || kb == null) return cmd;
-        cmd.Move = Vector2.ClampMagnitude(new Vector2(
-            (kb.dKey.isPressed ? 1f : 0f) - (kb.aKey.isPressed ? 1f : 0f),
-            (kb.wKey.isPressed ? 1f : 0f) - (kb.sKey.isPressed ? 1f : 0f)), 1f);
-        cmd.Look = Mouse.current != null ? Mouse.current.delta.ReadValue() * mouseDeltaScale : Vector2.zero;
-        cmd.JumpPressed = kb.spaceKey.wasPressedThisFrame;
-        cmd.JumpHeld = kb.spaceKey.isPressed;
-        cmd.SprintHeld = kb.leftShiftKey.isPressed;
-        cmd.CrouchHeld = kb.leftCtrlKey.isPressed;
-        cmd.CrouchPressed = kb.leftCtrlKey.wasPressedThisFrame;
-        cmd.SlidePressed = kb.cKey.wasPressedThisFrame;
-        cmd.DashPressed =
-        kb.qKey.wasPressedThisFrame || (Mouse.current != null && Mouse.current.middleButton.wasPressedThisFrame);
-        cmd.ClimbHeld = kb.spaceKey.isPressed;
-        cmd.ToggleViewPressed = kb.vKey.wasPressedThisFrame;
+        MoveCommand cmd=MoveCommand.Empty;
+        if(!InputAllowed || PlayerControlSettings.GameplayBlocked) return cmd;
+        cmd.Move=PlayerControlSettings.Movement;
+#if ENABLE_INPUT_SYSTEM
+        cmd.Look=Mouse.current!=null ? Mouse.current.delta.ReadValue()*mouseDeltaScale : Vector2.zero;
+#elif ENABLE_LEGACY_INPUT_MANAGER
+        cmd.Look=new Vector2(Input.GetAxisRaw("Mouse X"),Input.GetAxisRaw("Mouse Y"));
+#endif
+        cmd.JumpPressed=PlayerControlSettings.Pressed(PlayerControlSettings.Control.Jump);
+        cmd.JumpHeld=PlayerControlSettings.Held(PlayerControlSettings.Control.Jump);
+        cmd.SprintHeld=PlayerControlSettings.Held(PlayerControlSettings.Control.Sprint);
+        cmd.CrouchHeld=PlayerControlSettings.Held(PlayerControlSettings.Control.Crouch);
+        cmd.CrouchPressed=PlayerControlSettings.Pressed(PlayerControlSettings.Control.Crouch);
+        cmd.SlidePressed=PlayerControlSettings.Pressed(PlayerControlSettings.Control.Slide);
+        cmd.DashPressed=PlayerControlSettings.Pressed(PlayerControlSettings.Control.Dash);
+        cmd.ClimbHeld=PlayerControlSettings.Held(PlayerControlSettings.Control.Climb);
+        cmd.ToggleViewPressed=PlayerControlSettings.Pressed(PlayerControlSettings.Control.ChangeView);
         return cmd;
     }
 }
-#endif

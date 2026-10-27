@@ -230,7 +230,7 @@ public class SimpleMove : MonoBehaviour
         result.CrouchPressed = Input.GetKeyDown(KeyCode.LeftControl);
         result.SlidePressed = Input.GetKeyDown(KeyCode.C);
         result.DashPressed = Input.GetKeyDown(KeyCode.Q);
-        result.ClimbHeld = Input.GetKey(KeyCode.Space);
+        result.ClimbHeld = Input.GetKey(KeyCode.LeftAlt);
         result.ToggleViewPressed = Input.GetKeyDown(KeyCode.V);
         return result;
 #else

@@ -22,6 +22,8 @@ public sealed class AnimationHandler : MonoBehaviour
     [SerializeField] private Animator animator;
     [SerializeField] private CharacterController characterController;
     [SerializeField] private Transform motionRoot;
+    [Header("Optional weapon animation layer")]
+    [SerializeField] private string aimingLayerName = "Aiming";
 
     [Header("Ground detection when no CharacterController exists")]
     [SerializeField] private bool useGroundRaycastFallback = false;
@@ -92,6 +94,9 @@ public sealed class AnimationHandler : MonoBehaviour
     private static readonly int WallRunID = Animator.StringToHash("WallRunning");
     private static readonly int ClimbID = Animator.StringToHash("Climbing");
     private static readonly int VaultID = Animator.StringToHash("Vaulting");
+    private static readonly int IsAimID = Animator.StringToHash("IsAim");
+    private static readonly int IsShootingID = Animator.StringToHash("IsShooting");
+    private static readonly int IsReloadingID = Animator.StringToHash("IsReloading");
 
     private RuntimeAnimatorController cachedController;
     private Vector3 previousPosition;
@@ -111,6 +116,10 @@ public sealed class AnimationHandler : MonoBehaviour
     private bool lastLoggedDashing;
     private bool lastLoggedFalling;
     private Vector2 dodgeDirection = Vector2.up;
+    private int aimingLayerIndex = -1;
+    private bool aiming;
+    private bool reloading;
+    private bool weaponEquipped;
 
     // Optional action overrides, invoked by any future movement, AI, replay or network system.
     // No other script is needed for basic locomotion / jump / fall / landing.
@@ -123,6 +132,7 @@ public sealed class AnimationHandler : MonoBehaviour
     private bool climbing;
     private bool vaulting;
     private bool manualStanceOverride;
+    private bool manualTraversalOverride;
     private MonoBehaviour optionalStateSource;
     private PropertyInfo optionalStateProperty;
     private float standingCapsuleHeight;
@@ -216,10 +226,26 @@ public sealed class AnimationHandler : MonoBehaviour
         bool stanceSliding;
         ResolveStance(grounded, dt, out stanceCrouching, out stanceSliding);
 
+        bool stateWallRunning = false;
+        bool stateClimbing = false;
+        bool stateVaulting = false;
+        if (!manualTraversalOverride && useOptionalEnumState && optionalStateSource != null &&
+            optionalStateSource.isActiveAndEnabled && optionalStateProperty != null)
+        {
+            object state = optionalStateProperty.GetValue(optionalStateSource, null);
+            string stateName = state != null ? state.ToString() : string.Empty;
+            stateWallRunning = stateName == "WallRunning";
+            stateClimbing = stateName == "WallClimbing";
+            stateVaulting = stateName == "Vaulting";
+        }
+        bool currentWallRunning = manualTraversalOverride ? wallRunning : stateWallRunning;
+        bool currentClimbing = manualTraversalOverride ? climbing : stateClimbing;
+        bool currentVaulting = manualTraversalOverride ? vaulting : stateVaulting;
+
         bool dashing = dashOverrideEnabled
             ? dashOverrideActive
             : detectDodgeFromSpeed && horizontalSpeed >= dodgeDetectionSpeed;
-        bool special = dashing || wallRunning || climbing || vaulting;
+        bool special = dashing || currentWallRunning || currentClimbing || currentVaulting;
 
         // Sample the actual root movement AFTER the motor's Update.
         // No direct references to any motor, input class, or networking library.
@@ -304,9 +330,9 @@ public sealed class AnimationHandler : MonoBehaviour
         bool showCrouching = grounded && !special && stanceCrouching && !showSliding;
         SetBool(CrouchID, showCrouching);
         SetBool(SlideID, showSliding);
-        SetBool(WallRunID, wallRunning);
-        SetBool(ClimbID, climbing);
-        SetBool(VaultID, vaulting);
+        SetBool(WallRunID, currentWallRunning);
+        SetBool(ClimbID, currentClimbing);
+        SetBool(VaultID, currentVaulting);
         if (dashing)
         {
             SetFloat(DodgeXID, dodgeDirection.x);
@@ -458,12 +484,17 @@ public sealed class AnimationHandler : MonoBehaviour
         floatParams.Clear();
         triggerParams.Clear();
         cachedController = animator.runtimeAnimatorController;
+        aimingLayerIndex = string.IsNullOrEmpty(aimingLayerName) ? -1 : animator.GetLayerIndex(aimingLayerName);
+        if (aimingLayerIndex >= 0) animator.SetLayerWeight(aimingLayerIndex, weaponEquipped ? 1f : 0f);
         foreach (AnimatorControllerParameter p in animator.parameters)
         {
             if (p.type == AnimatorControllerParameterType.Bool) boolParams.Add(p.nameHash);
             else if (p.type == AnimatorControllerParameterType.Float) floatParams.Add(p.nameHash);
             else if (p.type == AnimatorControllerParameterType.Trigger) triggerParams.Add(p.nameHash);
         }
+        SetBool(IsAimID, aiming);
+        ResetTrigger(IsShootingID);
+        SetBool(IsReloadingID, reloading);
     }
 
     private void SetBool(int hash, bool value)
@@ -484,6 +515,49 @@ public sealed class AnimationHandler : MonoBehaviour
     private void ResetTrigger(int hash)
     {
         if (triggerParams.Contains(hash)) animator.ResetTrigger(hash);
+    }
+
+    /// <summary>Connect SimpleWeapon.onAimChanged (dynamic bool) here.</summary>
+    public void SetAiming(bool active)
+    {
+        aiming = active && weaponEquipped;
+        SetBool(IsAimID, aiming);
+    }
+
+    /// <summary>Connect SimpleWeapon.onShot here; briefly raises IsShooting.</summary>
+    public void PlayShooting()
+    {
+        if (!weaponEquipped) return;
+        SetTrigger(IsShootingID);
+    }
+
+    /// <summary>Optional direct bool setter for other animation event sources.</summary>
+    public void SetShooting(bool active)
+    {
+        if (active && weaponEquipped) SetTrigger(IsShootingID);
+        else ResetTrigger(IsShootingID);
+    }
+
+    /// <summary>Connect SimpleWeapon.onReloadChanged (dynamic bool) here.</summary>
+    public void SetReloading(bool active)
+    {
+        reloading = active && weaponEquipped;
+        SetBool(IsReloadingID, reloading);
+    }
+
+    /// <summary>Connect SimpleWeapon.onEquippedChanged (dynamic bool) here.</summary>
+    public void SetWeaponEquipped(bool equipped)
+    {
+        weaponEquipped = equipped;
+        if (!weaponEquipped)
+        {
+            aiming = false;
+            reloading = false;
+            ResetTrigger(IsShootingID);
+        }
+        if (aimingLayerIndex >= 0) animator.SetLayerWeight(aimingLayerIndex, weaponEquipped ? 1f : 0f);
+        SetBool(IsAimID, aiming);
+        SetBool(IsReloadingID, reloading);
     }
 
     /// <summary>Optional call from ANY motor; not required to compile or to animate jumping.</summary>
@@ -508,6 +582,7 @@ public sealed class AnimationHandler : MonoBehaviour
     {
         // Caller-supplied stance values take precedence until cleared.
         manualStanceOverride = true;
+        manualTraversalOverride = true;
         crouching = isCrouching;
         sliding = isSliding;
         wallRunning = isWallRunning;
@@ -515,9 +590,10 @@ public sealed class AnimationHandler : MonoBehaviour
         vaulting = isVaulting;
     }
 
-    /// <summary>Resume automatic crouch/slide detection after SetTraversalFlags.</summary>
+    /// <summary>Resume automatic stance and traversal-state detection after SetTraversalFlags.</summary>
     public void ClearTraversalStanceOverride()
     {
         manualStanceOverride = false;
+        manualTraversalOverride = false;
     }
 }
