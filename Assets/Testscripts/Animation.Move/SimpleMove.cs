@@ -17,7 +17,7 @@ public class SimpleMove : MonoBehaviour
     public enum MotionState
     {
         Grounded, Airborne, Crouching, Sliding, Dashing, WallRunning,
-        WallClimbing, Vaulting
+        WallClimbing, Vaulting, Mantling
     }
 
     [Header("Optional Auto-Discovered References")]
@@ -95,6 +95,14 @@ public class SimpleMove : MonoBehaviour
     [SerializeField, Min(0f)] private float vaultBeyondDistance = 1.15f;
     [SerializeField, Min(0f)] private float vaultArcHeight = .55f;
 
+    [Header("Mantle (pull onto higher ledges)")]
+    [SerializeField] private bool allowMantling = true;
+    [SerializeField, Min(.1f)] private float mantleMinHeight = 1.15f;
+    [SerializeField, Min(.2f)] private float mantleMaxHeight = 2.6f;
+    [SerializeField, Min(.1f)] private float mantleDuration = .55f;
+    [SerializeField, Min(.1f)] private float mantleForwardOffset = .65f;
+    [SerializeField, Min(0f)] private float mantleArcHeight = .18f;
+
     [Header("Offline / Networking Preparation")]
     [Tooltip("Only for BotSwitcher offline testing. Disable for network-replicated proxies.")]
     [SerializeField] private bool simulateGravityWhenNotLocal = true;
@@ -128,6 +136,10 @@ public class SimpleMove : MonoBehaviour
     private Vector3 vaultStart;
     private Vector3 vaultEnd;
     private float vaultElapsed;
+    private Vector3 mantleStart;
+    private Vector3 mantleEnd;
+    private Vector3 mantleDirection;
+    private float mantleElapsed;
     private float standingHeight;
     private Vector3 standingCenter;
     private readonly Collider[] clearanceResults = new Collider[16];
@@ -255,6 +267,18 @@ public class SimpleMove : MonoBehaviour
 
         Vector3 wish = CalculateWishDirection(cmd.Move);
         UpdateSprintMomentum(cmd, grounded, dt);
+
+        if (State == MotionState.Mantling)
+        {
+            SimulateMantle(dt);
+            return;
+        }
+
+        if (TryStartMantle(cmd, wish, grounded))
+        {
+            SimulateMantle(dt);
+            return;
+        }
 
         if (State == MotionState.Vaulting)
         {
@@ -587,6 +611,77 @@ public class SimpleMove : MonoBehaviour
         return true;
     }
 
+    private bool TryStartMantle(MoveCommand cmd, Vector3 wish, bool grounded)
+    {
+        bool alreadyClimbing = State == MotionState.WallClimbing;
+        if (!allowMantling || !cmd.MantlePressed || State == MotionState.Dashing ||
+            State == MotionState.Vaulting || State == MotionState.Sliding ||
+            (!grounded && !alreadyClimbing) ||
+            wish.sqrMagnitude < .01f) return false;
+
+        Vector3 forward = wish.normalized;
+        Vector3 start = transform.position;
+        Vector3 wallOrigin = start + Vector3.up * Mathf.Min(characterController.height * .55f, 1.1f);
+        if (!Physics.Raycast(wallOrigin, forward, out RaycastHit wall,
+                Mathf.Max(vaultProbeDistance, wallClimbProbeDistance), worldMask,
+                QueryTriggerInteraction.Ignore) ||
+            wall.collider.transform.root == transform.root || Mathf.Abs(wall.normal.y) > .35f)
+            return false;
+
+        Vector3 topOrigin = wall.point + forward * mantleForwardOffset +
+            Vector3.up * (mantleMaxHeight + .55f);
+        if (!Physics.Raycast(topOrigin, Vector3.down, out RaycastHit top,
+                mantleMaxHeight + 1f, worldMask, QueryTriggerInteraction.Ignore) || top.normal.y < .68f)
+            return false;
+
+        float rise = top.point.y - start.y;
+        float lowestAllowedRise = alreadyClimbing ? -.45f : Mathf.Max(mantleMinHeight, vaultMaxHeight + .05f);
+        if (rise < lowestAllowedRise || rise > mantleMaxHeight) return false;
+
+        Vector3 end = top.point + forward * mantleForwardOffset;
+        end.y = top.point.y + .04f;
+        float radius = Mathf.Max(.05f, characterController.radius - characterController.skinWidth);
+        Vector3 capsuleCenter = end + transform.rotation * characterController.center;
+        Vector3 capsuleBottom = capsuleCenter + Vector3.up * (-standingHeight * .5f + radius + .02f);
+        Vector3 capsuleTop = capsuleCenter + Vector3.up * (standingHeight * .5f - radius);
+        if (Physics.CheckCapsule(capsuleBottom, capsuleTop, radius, worldMask,
+                QueryTriggerInteraction.Ignore)) return false;
+
+        mantleStart = start;
+        mantleEnd = end;
+        mantleDirection = forward;
+        mantleElapsed = 0f;
+        State = MotionState.Mantling;
+        desiredCrouch = false;
+        jumpBufferTimer = 0f;
+        verticalVelocity = 0f;
+        planarVelocity = Vector3.zero;
+        return true;
+    }
+
+    private void SimulateMantle(float dt)
+    {
+        mantleElapsed += dt;
+        float progress = Mathf.Clamp01(mantleElapsed / Mathf.Max(.05f, mantleDuration));
+        float eased = progress * progress * (3f - 2f * progress);
+        Vector3 target = Vector3.Lerp(mantleStart, mantleEnd, eased);
+        target.y += Mathf.Sin(progress * Mathf.PI) * mantleArcHeight;
+        CollisionFlags collision = characterController.Move(target - transform.position);
+        if ((collision & CollisionFlags.Sides) != 0 && progress < .95f)
+        {
+            State = MotionState.Airborne;
+            verticalVelocity = 0f;
+            return;
+        }
+        if (progress >= 1f)
+        {
+            State = characterController.isGrounded ? MotionState.Grounded : MotionState.Airborne;
+            planarVelocity = mantleDirection * walkSpeed;
+            verticalVelocity = -1f;
+        }
+        UpdateStance(MoveCommand.Empty, dt);
+    }
+
     private void SimulateVault(float dt)
     {
         vaultElapsed += dt;
@@ -787,6 +882,7 @@ public struct MoveCommand
     public bool SlidePressed;
     public bool DashPressed;
     public bool ClimbHeld;
+    public bool MantlePressed;
     public bool ToggleViewPressed;
     public static MoveCommand Empty => default(MoveCommand);
 }

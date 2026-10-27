@@ -97,6 +97,8 @@ public sealed class AnimationHandler : MonoBehaviour
     private static readonly int IsAimID = Animator.StringToHash("IsAim");
     private static readonly int IsShootingID = Animator.StringToHash("IsShooting");
     private static readonly int IsReloadingID = Animator.StringToHash("IsReloading");
+    private static readonly int MoveXID = Animator.StringToHash("MoveX");
+    private static readonly int MoveYID = Animator.StringToHash("MoveY");
 
     private RuntimeAnimatorController cachedController;
     private Vector3 previousPosition;
@@ -221,6 +223,17 @@ public sealed class AnimationHandler : MonoBehaviour
         Vector3 horizontalDelta = Vector3.ProjectOnPlane(displacement, Vector3.up);
         horizontalSpeed = horizontalDelta.magnitude / dt;
         verticalSpeed = displacement.y / dt;
+        // Send movement direction to the 2D blend tree.
+        Vector3 localVelocity =
+            motionRoot.InverseTransformDirection(horizontalDelta / dt);
+
+        Vector2 moveDirection = new Vector2(localVelocity.x, localVelocity.z);
+
+        if (moveDirection.sqrMagnitude > 1f)
+            moveDirection.Normalize();
+
+        SetFloat(MoveXID, moveDirection.x);
+        SetFloat(MoveYID, moveDirection.y);
 
         bool stanceCrouching;
         bool stanceSliding;

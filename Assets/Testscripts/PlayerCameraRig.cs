@@ -8,6 +8,8 @@ public sealed class PlayerCameraRig : MonoBehaviour, IMoveCameraRig
     [SerializeField] private Transform cameraFollowTarget;
     [Tooltip("Optional first-person camera position attached to the animated model's head/eye area.")]
     [SerializeField] private Transform firstPersonFollowTarget;
+    [Tooltip("Body renderers to hide in first person (head, hair, upper body). Leave weapons and separate first-person arms out of this list.")]
+    [SerializeField] private Renderer[] hideInFirstPerson;
     [SerializeField] private ViewMode startingView = ViewMode.ThirdPerson;
     [SerializeField] private bool allowViewToggle = true;
     [SerializeField, Min(0f)] private float sensitivityX = 2f, sensitivityY = 2f;
@@ -23,6 +25,7 @@ public sealed class PlayerCameraRig : MonoBehaviour, IMoveCameraRig
     [SerializeField, Min(0f)] private float eyeSmoothSpeed = 10f;
     private SimpleMove motor;
     private float yaw, pitch, eyeHeight, armLength, armVelocity;
+    private bool[] firstPersonRendererDefaults;
     private readonly RaycastHit[] collisionHits = new RaycastHit[32];
     public ViewMode Mode { get; private set; }
     public Transform CameraTransform => cameraTransform;
@@ -30,6 +33,7 @@ public sealed class PlayerCameraRig : MonoBehaviour, IMoveCameraRig
     private void Awake()
     {
         motor = GetComponent<SimpleMove>(); eyeHeight = standingEyeHeight;
+        CacheFirstPersonRendererDefaults();
         if (!cameraTransform) { Camera own = GetComponentInChildren<Camera>(true); if (own) cameraTransform = own.transform; }
         SetCamera(cameraTransform); SetMode(startingView);
     }
@@ -62,7 +66,21 @@ public sealed class PlayerCameraRig : MonoBehaviour, IMoveCameraRig
         else armLength = Mathf.Min(target, Mathf.SmoothDamp(armLength, target, ref armVelocity, positionSmoothTime));
         cameraTransform.SetPositionAndRotation(pivot + direction * armLength, rotation);
     }
-    public void SetMode(ViewMode mode) { Mode = mode; armLength = followDistance; armVelocity = 0f; if (motor) motor.SetOrientationToView(IsFirstPerson); }
+    public void SetMode(ViewMode mode) { Mode = mode; armLength = followDistance; armVelocity = 0f; ApplyFirstPersonVisibility(); if (motor) motor.SetOrientationToView(IsFirstPerson); }
+    private void CacheFirstPersonRendererDefaults()
+    {
+        if (hideInFirstPerson == null) return;
+        firstPersonRendererDefaults = new bool[hideInFirstPerson.Length];
+        for (int i = 0; i < hideInFirstPerson.Length; i++)
+            firstPersonRendererDefaults[i] = hideInFirstPerson[i] != null && hideInFirstPerson[i].enabled;
+    }
+    private void ApplyFirstPersonVisibility()
+    {
+        if (hideInFirstPerson == null) return;
+        for (int i = 0; i < hideInFirstPerson.Length; i++)
+            if (hideInFirstPerson[i] != null)
+                hideInFirstPerson[i].enabled = !IsFirstPerson && firstPersonRendererDefaults != null && firstPersonRendererDefaults[i];
+    }
     public void SetCamera(Transform value) { cameraTransform = value; yaw = value ? value.eulerAngles.y : transform.eulerAngles.y; pitch = value ? Mathf.Clamp(Mathf.DeltaAngle(0f, value.eulerAngles.x), minimumPitch, maximumPitch) : 0f; armLength = followDistance; armVelocity = 0f; }
     public void SetLookSensitivity(float x, float y) { sensitivityX = Mathf.Max(0f, x); sensitivityY = Mathf.Max(0f, y); }
     public void SetInvertY(bool value) => invertY = value;
